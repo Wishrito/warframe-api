@@ -1,145 +1,24 @@
-from fastapi import FastAPI, HTTPException, Depends, Query, Request
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Table
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
 from typing import List, Optional
-from pydantic import BaseModel
-import os
+
+from dependencies import api_client_only, browser_only, get_client_info, get_db
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
-from starlette.middleware.base import BaseHTTPMiddleware
-from .utils import is_browser
-from .dependencies import browser_only, api_client_only, get_client_info
-
-# Database setup - using environment variable for connection string
-# For Vercel, you'll need to set up a PostgreSQL database (like Neon, Supabase, etc.)
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://user:password@localhost:5432/warframe")
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-# Define association tables for many-to-many relationships
-warframe_ability = Table(
-    "warframe_ability",
-    Base.metadata,
-    Column("warframe_id", Integer, ForeignKey("warframes.id")),
-    Column("ability_id", Integer, ForeignKey("abilities.id"))
+from models import (
+    Ability,
+    AbilityCreate,
+    Mod,
+    ModCreate,
+    Warframe,
+    WarframeCreate,
+    Weapon,
+    WeaponCreate,
 )
-
-# Database Models
-class Warframe(Base):
-    __tablename__ = "warframes"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    health = Column(Integer)
-    shield = Column(Integer)
-    armor = Column(Integer)
-    energy = Column(Integer)
-    description = Column(String)
-    
-    abilities = relationship("Ability", secondary=warframe_ability, back_populates="warframes")
-    
-class Ability(Base):
-    __tablename__ = "abilities"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    description = Column(String)
-    energy_cost = Column(Integer)
-    
-    warframes = relationship("Warframe", secondary=warframe_ability, back_populates="abilities")
-
-class Weapon(Base):
-    __tablename__ = "weapons"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    type = Column(String)  # Primary, Secondary, Melee
-    damage = Column(Float)
-    critical_chance = Column(Float)
-    critical_multiplier = Column(Float)
-    status_chance = Column(Float)
-    description = Column(String)
-
-class Mod(Base):
-    __tablename__ = "mods"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    type = Column(String)  # Warframe, Weapon, Companion, etc.
-    rarity = Column(String)  # Common, Uncommon, Rare, Legendary
-    drain = Column(Integer)
-    description = Column(String)
-    effect = Column(String)
-
-# Pydantic models for request/response
-class AbilityBase(BaseModel):
-    name: str
-    description: str
-    energy_cost: int
-
-class AbilityCreate(AbilityBase):
-    pass
-
-class AbilityResponse(AbilityBase):
-    id: int
-    
-    class Config:
-        orm_mode = True
-
-class WarframeBase(BaseModel):
-    name: str
-    health: int
-    shield: int
-    armor: int
-    energy: int
-    description: str
-
-class WarframeCreate(WarframeBase):
-    pass
-
-class WarframeResponse(WarframeBase):
-    id: int
-    abilities: List[AbilityResponse] = []
-    
-    class Config:
-        orm_mode = True
-
-class WeaponBase(BaseModel):
-    name: str
-    type: str
-    damage: float
-    critical_chance: float
-    critical_multiplier: float
-    status_chance: float
-    description: str
-
-class WeaponCreate(WeaponBase):
-    pass
-
-class WeaponResponse(WeaponBase):
-    id: int
-    
-    class Config:
-        orm_mode = True
-
-class ModBase(BaseModel):
-    name: str
-    type: str
-    rarity: str
-    drain: int
-    description: str
-    effect: str
-
-class ModCreate(ModBase):
-    pass
-
-class ModResponse(ModBase):
-    id: int
-    
-    class Config:
-        orm_mode = True
+from schemas import AbilityResponse, ModResponse, WarframeResponse, WeaponResponse
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
+from utils import is_browser
 
 # FastAPI app
 app = FastAPI(title="Warframe API", description="API for Warframe game data")
@@ -167,14 +46,6 @@ class ClientDetectionMiddleware(BaseHTTPMiddleware):
 
 # Add the middleware to the app
 app.add_middleware(ClientDetectionMiddleware)
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 # Example route that behaves differently based on client type
 @app.get("/")
@@ -205,17 +76,16 @@ def read_root(request: Request):
         """
         from fastapi.responses import HTMLResponse
         return HTMLResponse(content=html_content)
-    else:
-        # Return JSON for API clients
-        return {
-            "message": "Welcome to the Warframe API!",
-            "documentation": "/docs",
-            "endpoints": {
-                "warframes": "/warframes",
-                "weapons": "/weapons",
-                "mods": "/mods"
-            }
-        }
+    # Return JSON for API clients
+    return {
+        "message": "Welcome to the Warframe API!",
+        "documentation": "/docs",
+        "endpoints": {
+            "warframes": "/warframes",
+            "weapons": "/weapons",
+            "mods": "/mods",
+        },
+    }
 
 # Example of a browser-only endpoint
 @app.get("/browser-dashboard", dependencies=[Depends(browser_only)])
@@ -384,4 +254,3 @@ def add_ability_to_warframe(warframe_id: int, ability_id: int, db: Session = Dep
 
 # Create handler for AWS Lambda (required for Vercel)
 handler = Mangum(app)
-

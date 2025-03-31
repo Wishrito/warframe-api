@@ -1,5 +1,6 @@
 import re
 
+
 def is_browser(user_agent: str) -> bool:
     """
     Determine if the request is likely coming from a browser based on User-Agent.
@@ -26,4 +27,3 @@ def is_browser(user_agent: str) -> bool:
     
     # Check if any browser pattern matches
     return any(re.search(pattern, user_agent) for pattern in browser_patterns)
-

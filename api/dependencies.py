@@ -1,5 +1,7 @@
-from fastapi import Request, HTTPException
-from .utils import is_browser
+from fastapi import HTTPException, Request
+
+from utils import is_browser
+from database import SessionLocal
 
 def browser_only(request: Request):
     """Dependency that only allows browser requests"""
@@ -23,3 +25,10 @@ def get_client_info(request: Request):
         "user_agent": user_agent
     }
 
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

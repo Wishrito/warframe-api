@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
-from index import SessionLocal, Warframe, Ability, Weapon, Mod, Base, engine
+
+from api.index import Ability, Base, Mod, SessionLocal, Warframe, Weapon, engine
+
 
 def seed_database():
     # Create tables if they don't exist
@@ -163,4 +165,3 @@ def handler(event, context):
         "statusCode": 200,
         "body": result
     }
-

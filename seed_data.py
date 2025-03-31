@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from main import SessionLocal, Warframe, Ability, Weapon, Mod
+from api.index import Warframe, Ability, Weapon, Mod
+from api.database import SessionLocal
 
 def seed_database():
     db = SessionLocal()
@@ -157,4 +158,3 @@ def seed_database():
 
 if __name__ == "__main__":
     seed_database()
-

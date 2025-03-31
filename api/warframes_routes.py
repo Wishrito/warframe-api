@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Request, Depends, HTTPException
-from sqlalchemy.orm import Session
-from .database import get_db
-from .models import Warframe
-from .schemas import WarframeResponse
-from .utils import is_browser
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from database import get_db
+from models import Warframe
+from schemas import WarframeResponse
+from utils import is_browser
 
 router = APIRouter()
 
@@ -28,4 +30,3 @@ def read_warframes(request: Request, skip: int = 0, limit: int = 100, db: Sessio
     # Continue with the regular logic
     warframes = db.query(Warframe).offset(skip).limit(limit).all()
     return warframes
-
